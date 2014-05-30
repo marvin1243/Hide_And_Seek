@@ -469,6 +469,7 @@ public OnClientPutInServer(client)
 	
 	// Hide player location info
 	SDKHook(client, SDKHook_PostThinkPost, Hook_OnPostThinkPost);
+	SDKHook(client, SDKHook_PostThink, Hook_OnPostThink);
 }
 
 public OnClientDisconnect(client)
@@ -708,8 +709,14 @@ public Action:OnTraceAttack(victim, &attacker, &inflictor, &Float:damage, &damag
 
 public Hook_OnPostThinkPost(client)
 {
-	if(GetConVarBool(g_hCVHidePlayerLocation))
+	if(GetConVarBool(g_hCVHidePlayerLocation) && GetClientTeam(client) == CS_TEAM_T)
 		SetEntPropString(client, Prop_Send, "m_szLastPlaceName", "");
+}
+
+public Hook_OnPostThink(client)
+{
+	if(GetClientTeam(client) == CS_TEAM_T) 
+		SetEntPropEnt(client, Prop_Send, "m_bSpotted", 0);
 }
 
 /*
