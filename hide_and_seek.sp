@@ -1453,6 +1453,9 @@ public Action:ShowCountdown(Handle:timer, any:freezeTime)
 
 public Action:ShowRoundTime(Handle:timer, any:roundTime)
 {
+	if(GetEngineVersion() == Engine_CSGO)
+		return Plugin_Stop;
+	
 	decl String:timeLeft[10];
 	new seconds = roundTime - GetTime() + g_iRoundStartTime;
 	
@@ -1777,7 +1780,7 @@ public Action:Toggle_ThirdPerson(client, args)
 	{
 		SetThirdPersonView(client, false);
 		// remove the roundtime message
-		Client_PrintKeyHintText(client, "");
+		if(GetEngineVersion() == Engine_CSS) Client_PrintKeyHintText(client, "");
 	}
 	
 	return Plugin_Handled;
@@ -1822,7 +1825,7 @@ public Action:Disable_ThirdPerson(client, args)
 	{
 		SetThirdPersonView(client, false);
 		// remove the roundtime message
-		Client_PrintKeyHintText(client, "");
+		if(GetEngineVersion() == Engine_CSS) Client_PrintKeyHintText(client, "");
 	}
 	
 	return Plugin_Handled;
