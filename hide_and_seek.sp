@@ -1904,11 +1904,14 @@ public Action:Play_Whistle(client,args)
 		return Plugin_Handled;
 	}
 	
+	//BUGGY
+	/* 
 	if(!g_bWhistlingAllowed)
 	{
 		PrintToChat(client, "%s%t", PREFIX, "Whistling not allowed yet");
 		return Plugin_Handled;
 	}
+	*/
 	
 	new cvarWhistleTimes = GetConVarInt(g_hCVWhistleTimes);
 	
