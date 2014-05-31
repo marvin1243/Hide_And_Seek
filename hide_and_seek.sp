@@ -2605,7 +2605,27 @@ PerformBlind(client, amount)
 		mode = FFADE_PURGE;
 	else
 		mode = FFADE_STAYOUT;
-	Client_ScreenFade(client, 1536, mode, 1536, 0, 0, 0, amount);
+	
+	if(GetEngineVersion() == Engine_CSS)
+	{
+		Client_ScreenFade(client, 1536, mode, 1536, 0, 0, 0, amount);
+	}
+	else if(GetEngineVersion() == Engine_CSGO)
+	{
+		new Handle:hFadeClient = StartMessageOne("Fade", client);
+		PbSetInt(hFadeClient, "duration", 1);
+		PbSetInt(hFadeClient, "hold_time", 3);
+		if(amount == 0)
+		{
+			PbSetInt(hFadeClient, "flags", FFADE_PURGE);
+		}
+		else
+		{
+			PbSetInt(hFadeClient, "flags", FFADE_STAYOUT);
+		}
+		PbSetColor(hFadeClient, "clr", {0, 0, 0, 255});
+		EndMessage();
+	}
 }
 
 // set a random model to a client
