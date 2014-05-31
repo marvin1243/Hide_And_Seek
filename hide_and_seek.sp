@@ -2023,7 +2023,8 @@ public Action:Freeze_Cmd(client,args)
 				SetEntityMoveType(client, MOVETYPE_WALK);
 		}
 		
-		hFreezeHelper(client);
+		
+		hUnFreezeHelper(client, true);
 		g_bIsFreezed[client] = false;
 		PrintToChat(client, "%s%t", PREFIX, "Hider Unfreezed");
 	}
@@ -2051,7 +2052,7 @@ public Action:Freeze_Cmd(client,args)
 		// Stop him
 		TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, Float:{0.0,0.0,0.0});
 		
-		hUnFreezeHelper(client, true);
+		hFreezeHelper(client);
 		g_bIsFreezed[client] = true;
 		PrintToChat(client, "%s%t", PREFIX, "Hider Freezed");
 	}
@@ -2075,7 +2076,7 @@ stock hFreezeHelper(client)
 	new Float:place2[3];
 	new Float:secondpos[3];
 	
-	GetClientEyeAngles(client, angle);
+	GetClientAbsAngles(client, angle);
 	GetAngleVectors(angle, secondpos, NULL_VECTOR, NULL_VECTOR);
 	
 	place[0] -= 0.0;
