@@ -2412,7 +2412,12 @@ BuildMainMenu()
 	kv = CreateKeyValues("Models");
 	new String:file[256], String:map[64], String:title[64], String:finalOutput[100];
 	GetCurrentMap(map, sizeof(map));
-	BuildPath(Path_SM, file, 255, "configs/hide_and_seek/maps/%s.cfg", map);
+	
+	if(GetEngineVersion() == Engine_CSGO)
+		BuildPath(Path_SM, file, 255, "configs/hide_and_seek/maps_csgo/%s.cfg", map);
+	else if(GetEngineVersion() == Engine_CSS)
+		BuildPath(Path_SM, file, 255, "configs/hide_and_seek/maps_css/%s.cfg", map);
+	
 	FileToKeyValues(kv, file);
 	
 	if (!KvGotoFirstSubKey(kv))
