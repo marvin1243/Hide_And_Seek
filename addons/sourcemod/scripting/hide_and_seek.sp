@@ -2414,9 +2414,21 @@ BuildMainMenu()
 	GetCurrentMap(map, sizeof(map));
 	
 	if(GetEngineVersion() == Engine_CSGO)
+	{
 		BuildPath(Path_SM, file, 255, "configs/hide_and_seek/maps_csgo/%s.cfg", map);
+		if(!FileExists(file))
+		{
+			BuildPath(Path_SM, file, 255, "configs/hide_and_seek/maps_csgo/default.cfg");
+		}
+	}
 	else if(GetEngineVersion() == Engine_CSS)
+	{
 		BuildPath(Path_SM, file, 255, "configs/hide_and_seek/maps_css/%s.cfg", map);
+		if(!FileExists(file))
+		{
+			BuildPath(Path_SM, file, 255, "configs/hide_and_seek/maps_css/default.cfg");
+		}
+	}
 	
 	FileToKeyValues(kv, file);
 	
