@@ -487,7 +487,6 @@ public OnClientDisconnect(client)
 		}
 	
 		g_bInThirdPersonView[client] = false;
-		hUnFreezeHelper(client, false);
 		g_bIsFreezed[client] = false;
 		g_iModelChangeCount[client] = 0;
 		g_bIsCTWaiting[client] = false;
@@ -558,6 +557,9 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	{
 		buttons &= ~IN_ATTACK2;
 	}
+	
+	//Freeze and rotation fix
+	Client_UpdateFakeProp(client);
 	
 	// Modelfix
 	if(g_iFixedModelHeight[client] != 0.0 && IsPlayerAlive(client) && GetClientTeam(client) == CS_TEAM_T)
@@ -789,7 +791,6 @@ public Action:Event_OnPlayerSpawn(Handle:event, const String:name[], bool:dontBr
 		}
 		
 		g_iWhistleCount[client] = 0;
-		hUnFreezeHelper(client, true);
 		g_bIsFreezed[client] = false;
 		
 		if(g_iFirstTSpawn == 0)
@@ -1095,7 +1096,6 @@ public Action:Event_OnPlayerDeath(Handle:event, const String:name[], bool:dontBr
 			SetEntityMoveType(client, MOVETYPE_WALK);
 		}
 		
-		hUnFreezeHelper(client, true);
 		g_bIsFreezed[client] = false;
 	}
 	
@@ -1175,7 +1175,6 @@ public Action:Event_OnPlayerTeam(Handle:event, const String:name[], bool:dontBro
 				SetEntityMoveType(client, MOVETYPE_OBSERVER);
 			}
 			
-			hUnFreezeHelper(client, true);
 			g_bIsFreezed[client] = false;
 		}
 	}
@@ -1375,7 +1374,6 @@ public Action:PerformCheatPunishment(Handle:timer, any:client)
 				SetEntityMoveType(client, MOVETYPE_OBSERVER);
 			}
 			
-			hUnFreezeHelper(client, true);
 			g_bIsFreezed[client] = false;
 		}
 		
@@ -2026,8 +2024,6 @@ public Action:Freeze_Cmd(client,args)
 				SetEntityMoveType(client, MOVETYPE_WALK);
 		}
 		
-		
-		hUnFreezeHelper(client, true);
 		g_bIsFreezed[client] = false;
 		PrintToChat(client, "%s%t", PREFIX, "Hider Unfreezed");
 	}
@@ -2055,83 +2051,11 @@ public Action:Freeze_Cmd(client,args)
 		// Stop him
 		TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, Float:{0.0,0.0,0.0});
 		
-		hFreezeHelper(client);
 		g_bIsFreezed[client] = true;
 		PrintToChat(client, "%s%t", PREFIX, "Hider Freezed");
 	}
 	
 	return Plugin_Handled;
-}
-
-stock hFreezeHelper(client)
-{
-	SetEntityMoveType(client, MOVETYPE_NONE);
-	
-	// Stop him
-	TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, Float:{0.0,0.0,0.0});
-	
-	//Create Fake Model
-	new Float:place[3];
-	
-	GetClientAbsOrigin(client, place);
-	
-	new Float:angle[3];
-	new Float:place2[3];
-	new Float:secondpos[3];
-	
-	GetClientAbsAngles(client, angle);
-	GetAngleVectors(angle, secondpos, NULL_VECTOR, NULL_VECTOR);
-	
-	place[0] -= 0.0;
-	place2[0] = 0.0;
-	
-	GetEntPropVector(client, Prop_Data, "m_vecVelocity", secondpos);
-	AddVectors(place2, secondpos, place2);
-
-	decl String:fullPath[100];
-	GetClientModel(client, fullPath, sizeof(fullPath));
-	
-	new entity = CreateEntityByName("prop_physics_override");
-	if (IsValidEntity(entity))
-	{
-		PrecacheModel(fullPath, true);
-		SetEntityRenderMode(entity, RENDER_TRANSCOLOR);
-		SetEntityModel(entity, fullPath);
-		SetEntityMoveType(entity, MOVETYPE_NONE);
-		SetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity", client);
-		SetEntProp(entity, Prop_Data, "m_CollisionGroup", 1);
-		SetEntProp(entity, Prop_Send, "m_usSolidFlags", 12);
-		SetEntProp(entity, Prop_Send, "m_nSolidType", 6);
-		
-		DispatchSpawn(entity);
-		SetEntData(entity, g_Freeze, FL_CLIENT|FL_ATCONTROLS, 4, true);
-		SetEntityMoveType(entity, MOVETYPE_NONE);
-		SetEntPropEnt(entity, Prop_Data, "m_hLastAttacker", client);
-		
-		TeleportEntity(entity, place, angle, NULL_VECTOR);
-		
-		g_iFreezeEntity[client] = entity;
-		
-		//Make player invisible
-		SetEntityRenderMode(client, RENDER_NONE);
-	}
-}
-
-stock hUnFreezeHelper(client, bool:isconn=true)
-{
-	new entity_old = g_iFreezeEntity[client];
-	if (entity_old > 0) 
-	{
-		if (IsValidEntity(entity_old)) 
-			AcceptEntityInput(entity_old, "kill");
-		g_iFreezeEntity[client] = -1;
-	}
-	
-	if(isconn)
-	{
-		//Make player visible
-		SetEntityRenderMode(client, RENDER_TRANSCOLOR);
-	}
 }
 
 public Action:Block_Cmd(client,args)
@@ -3078,4 +3002,156 @@ public ClientConVar(QueryCookie:cookie, client, ConVarQueryResult:result, const 
 		else
 			g_bConVarViolation[client][i] = false;
 	}
+}
+
+stock Client_ResetFakeProp(client)
+{
+	new entity = g_iFreezeEntity[client];
+	if (entity > 0) 
+	{
+		if (IsValidEntity(entity)) AcceptEntityInput(entity, "kill");
+		g_iFreezeEntity[client] = -1;
+	}
+	
+	if(IsClientInGame(client))
+	{
+		g_bIsFreezed[client] = false;
+	}
+}
+
+stock Client_UpdateFakeProp(client)
+{
+	if(!IsClientInGame(client))
+	{
+		Client_ResetFakeProp(client);
+		return;
+	}
+	
+	if(!IsPlayerAlive(client))
+	{
+		SetEntityRenderMode(client, RENDER_TRANSCOLOR);
+		Client_ResetFakeProp(client);
+		return;
+	}
+	
+	if(GetClientTeam(client) != CS_TEAM_T)
+	{
+		SetEntityRenderMode(client, RENDER_TRANSCOLOR);
+		Client_ResetFakeProp(client);
+		return;
+	}
+	
+	if(g_iFreezeEntity[client] <= 0)
+	{
+		SetEntityRenderMode(client, RENDER_TRANSCOLOR);
+		Client_ReCreateFakeProp(client);
+		return;
+	}
+	
+	if(!Entity_IsValid(g_iFreezeEntity[client]))
+	{
+		SetEntityRenderMode(client, RENDER_TRANSCOLOR);
+		Client_ReCreateFakeProp(client);
+		return;
+	}
+	
+	if(!(GetEntityFlags(client) & FL_ONGROUND) && !g_bIsFreezed[client])
+	{
+		SetEntityRenderMode(client, RENDER_TRANSCOLOR);
+		SetEntityRenderMode(g_iFreezeEntity[client], RENDER_NONE);
+		return;
+	}
+	
+	decl Float:fVelocity[3];
+	GetEntPropVector(client, Prop_Data, "m_vecVelocity", fVelocity); //velocity
+	new Float:currentspeed = SquareRoot(Pow(fVelocity[0],2.0)+Pow(fVelocity[1],2.0));
+	
+	if(currentspeed >= 235.0)
+	{
+		//SetEntityRenderMode(client, RENDER_TRANSCOLOR);
+		//SetEntityRenderMode(g_hFreezeEntity[client], RENDER_NONE);
+		//return;
+	}
+	
+	new Float:ang_eye[3], Float:ang_abs[3];
+	GetClientEyeAngles(client, ang_eye);
+	GetClientAbsAngles(client, ang_abs);
+	
+	//show fake prop freezed
+	if(g_bIsFreezed[client])
+	{
+		SetEntityRenderMode(g_iFreezeEntity[client], RENDER_TRANSCOLOR);
+		SetEntityRenderMode(client, RENDER_NONE);
+	}
+	/*
+	//show player
+	else if(ang_eye[1] == ang_abs[1])
+	{
+		SetEntityRenderMode(g_hFreezeEntity[client], RENDER_NONE);
+		SetEntityRenderMode(client, RENDER_TRANSCOLOR);
+	}
+	*/
+	//show fake prop movement
+	else
+	{
+		SetEntityRenderMode(g_iFreezeEntity[client], RENDER_TRANSCOLOR);
+		SetEntityRenderMode(client, RENDER_NONE);
+	}
+	
+	
+	if(!g_bIsFreezed[client]) 
+	{
+		new Float:place[3], Float:place2[3], Float:secondpos[3];
+		
+		GetClientAbsOrigin(client, place);
+	
+		ang_eye[0] = 0.0; //no x-axis rotation
+		ang_eye[2] = 0.0; //no z-axis rotation
+		place[0] -= 0.0;
+		place2[0] = 0.0;
+		
+		if(g_iFixedModelHeight[client] < 0.0)
+		{
+			place[2] += g_iFixedModelHeight[client];
+			place2[2] += g_iFixedModelHeight[client];
+		}
+		
+		GetEntPropVector(client, Prop_Data, "m_vecVelocity", secondpos);
+		AddVectors(place2, secondpos, place2);
+		TeleportEntity(g_iFreezeEntity[client], place, ang_eye, place2);
+	}
+}
+	
+stock Client_ReCreateFakeProp(client)
+{
+	//delete old one if valid
+	new entity_old = g_iFreezeEntity[client];
+	if (entity_old > 0) 
+	{
+		if (IsValidEntity(entity_old)) AcceptEntityInput(entity_old, "kill");
+		g_iFreezeEntity[client] = -1;
+	}
+	
+	//Det model
+	decl String:fullPath[100];
+	GetClientModel(client, fullPath, sizeof(fullPath));
+	
+	//Create Fake Model
+	new entity = CreateEntityByName("prop_physics_override");
+	if (IsValidEntity(entity))
+	{
+		g_iFreezeEntity[client] = entity;
+		PrecacheModel(fullPath, true);
+		SetEntityModel(entity, fullPath);
+		SetEntityMoveType(entity, MOVETYPE_NONE);
+		SetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity", client);
+		SetEntProp(entity, Prop_Data, "m_CollisionGroup", 1);
+		SetEntProp(entity, Prop_Send, "m_usSolidFlags", 12);
+		SetEntProp(entity, Prop_Send, "m_nSolidType", 6);
+		DispatchSpawn(entity);
+		SetEntData(entity, g_Freeze, FL_CLIENT|FL_ATCONTROLS, 4, true);
+		SetEntityMoveType(entity, MOVETYPE_NONE);
+		SetEntPropEnt(entity, Prop_Data, "m_hLastAttacker", client);
+	}
+	else g_iFreezeEntity[client] = -1;
 }
