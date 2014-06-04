@@ -94,6 +94,7 @@ new g_iTotalModelsAvailable = 0;
 new g_iModelChangeCount[MAXPLAYERS+1] = {0,...};
 new bool:g_bAllowModelChange[MAXPLAYERS+1] = {true,...};
 new Handle:g_hAllowModelChangeTimer[MAXPLAYERS+1] = {INVALID_HANDLE,...};
+new bool:g_bShowFakeProp[MAXPLAYERS+1];
 // Model ground fix
 new Float:g_iFixedModelHeight[MAXPLAYERS+1] = {0.0,...};
 new bool:g_bClientIsHigher[MAXPLAYERS+1] = {false,...};
@@ -3027,39 +3028,56 @@ stock Client_UpdateFakeProp(client)
 		return;
 	}
 	
+	new bool:showprop = true;
+	new bool:showplayer = true;
+	
 	if(!IsPlayerAlive(client))
 	{
-		SetEntityRenderMode(client, RENDER_TRANSCOLOR);
+		if(g_bShowFakeProp[client]) 
+		{
+			g_bShowFakeProp[client] = false;
+			SetEntityRenderMode(client, RENDER_TRANSCOLOR);
+		}
 		Client_ResetFakeProp(client);
 		return;
 	}
 	
 	if(GetClientTeam(client) != CS_TEAM_T)
 	{
-		SetEntityRenderMode(client, RENDER_TRANSCOLOR);
+		if(g_bShowFakeProp[client]) 
+		{
+			g_bShowFakeProp[client] = false;
+			SetEntityRenderMode(client, RENDER_TRANSCOLOR);
+		}
 		Client_ResetFakeProp(client);
 		return;
 	}
 	
 	if(g_iFreezeEntity[client] <= 0)
 	{
-		SetEntityRenderMode(client, RENDER_TRANSCOLOR);
+		if(g_bShowFakeProp[client]) 
+		{
+			g_bShowFakeProp[client] = false;
+			SetEntityRenderMode(client, RENDER_TRANSCOLOR);
+		}
 		Client_ReCreateFakeProp(client);
 		return;
 	}
 	
 	if(!Entity_IsValid(g_iFreezeEntity[client]))
 	{
-		SetEntityRenderMode(client, RENDER_TRANSCOLOR);
+		if(g_bShowFakeProp[client]) 
+		{
+			g_bShowFakeProp[client] = false;
+			SetEntityRenderMode(client, RENDER_TRANSCOLOR);
+		}
 		Client_ReCreateFakeProp(client);
 		return;
 	}
 	
 	if(!(GetEntityFlags(client) & FL_ONGROUND) && !g_bIsFreezed[client])
 	{
-		SetEntityRenderMode(client, RENDER_TRANSCOLOR);
-		SetEntityRenderMode(g_iFreezeEntity[client], RENDER_NONE);
-		return;
+		showprop = false;
 	}
 	
 	decl Float:fVelocity[3];
@@ -3068,36 +3086,15 @@ stock Client_UpdateFakeProp(client)
 	
 	if(currentspeed >= 235.0)
 	{
-		//SetEntityRenderMode(client, RENDER_TRANSCOLOR);
-		//SetEntityRenderMode(g_hFreezeEntity[client], RENDER_NONE);
-		//return;
+		showprop = false;
 	}
 	
 	new Float:ang_eye[3], Float:ang_abs[3];
 	GetClientEyeAngles(client, ang_eye);
 	GetClientAbsAngles(client, ang_abs);
 	
-	//show fake prop freezed
-	if(g_bIsFreezed[client])
-	{
-		SetEntityRenderMode(g_iFreezeEntity[client], RENDER_TRANSCOLOR);
-		SetEntityRenderMode(client, RENDER_NONE);
-	}
-	/*
-	//show player
-	else if(ang_eye[1] == ang_abs[1])
-	{
-		SetEntityRenderMode(g_hFreezeEntity[client], RENDER_NONE);
-		SetEntityRenderMode(client, RENDER_TRANSCOLOR);
-	}
-	*/
-	//show fake prop movement
-	else
-	{
-		SetEntityRenderMode(g_iFreezeEntity[client], RENDER_TRANSCOLOR);
-		SetEntityRenderMode(client, RENDER_NONE);
-	}
-	
+	decl String:fullPath[100];
+	GetClientModel(client, fullPath, sizeof(fullPath));
 	
 	if(!g_bIsFreezed[client]) 
 	{
@@ -3119,6 +3116,29 @@ stock Client_UpdateFakeProp(client)
 		GetEntPropVector(client, Prop_Data, "m_vecVelocity", secondpos);
 		AddVectors(place2, secondpos, place2);
 		TeleportEntity(g_iFreezeEntity[client], place, ang_eye, place2);
+	}
+	
+	if(g_bShowFakeProp[client] != showprop)
+	{
+		g_bShowFakeProp[client] = showprop;
+		
+		if(showprop)
+		{
+			SetEntityRenderMode(g_iFreezeEntity[client], RENDER_TRANSCOLOR);
+		}
+		else
+		{
+			SetEntityRenderMode(g_iFreezeEntity[client], RENDER_NONE);
+		}
+		
+		if(showplayer && !showprop)
+		{
+			SetEntityRenderMode(client, RENDER_TRANSCOLOR);
+		}
+		else
+		{
+			SetEntityRenderMode(client, RENDER_NONE);
+		}
 	}
 }
 	
