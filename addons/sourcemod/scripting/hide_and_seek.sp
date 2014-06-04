@@ -3007,6 +3007,9 @@ public ClientConVar(QueryCookie:cookie, client, ConVarQueryResult:result, const 
 
 stock Client_ResetFakeProp(client)
 {
+	if(IsFakeClient(client))
+		return;
+	
 	new entity = g_iFreezeEntity[client];
 	if (entity > 0) 
 	{
@@ -3022,6 +3025,9 @@ stock Client_ResetFakeProp(client)
 
 stock Client_UpdateFakeProp(client)
 {
+	if(IsFakeClient(client))
+		return;
+	
 	if(!IsClientInGame(client))
 	{
 		Client_ResetFakeProp(client);
@@ -3144,6 +3150,9 @@ stock Client_UpdateFakeProp(client)
 	
 stock Client_ReCreateFakeProp(client)
 {
+	if(IsFakeClient(client))
+		return;
+	
 	//delete old one if valid
 	new entity_old = g_iFreezeEntity[client];
 	if (entity_old > 0) 
