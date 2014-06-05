@@ -22,7 +22,6 @@ new Handle:g_hCVChangeLimittime = INVALID_HANDLE;
 new Handle:g_hCVAutoChoose = INVALID_HANDLE;
 new Handle:g_hCVWhistle = INVALID_HANDLE;
 new Handle:g_hCVWhistleTimes = INVALID_HANDLE;
-new Handle:g_hCVWhistleDelay = INVALID_HANDLE;
 new Handle:g_hCVAntiCheat = INVALID_HANDLE;
 new Handle:g_hCVCheatPunishment = INVALID_HANDLE;
 new Handle:g_hCVHiderWinFrags = INVALID_HANDLE;
@@ -140,7 +139,6 @@ new Handle:g_hForceCamera = INVALID_HANDLE;
 // whistle sounds
 new g_iWhistleCount[MAXPLAYERS+1] = {0,...};
 new Handle:g_hWhistleDelay = INVALID_HANDLE;
-new bool:g_bWhistlingAllowed = true;
 new String:whistle_sounds[][] = {"ambient/animal/cow.wav", "ambient/animal/horse_4.wav", "ambient/animal/horse_5.wav", "ambient/machines/train_horn_3.wav", "ambient/misc/creak3.wav", "doors/door_metal_gate_close1.wav", "ambient/misc/flush1.wav"};
 
 // Teambalance
@@ -174,7 +172,6 @@ public OnPluginStart()
 	g_hCVAutoChoose = 		CreateConVar("sm_hns_autochoose", "0", "Should the plugin choose models for the hiders automatically?", FCVAR_PLUGIN, true, 0.0, true, 1.0);
 	g_hCVWhistle = 			CreateConVar("sm_hns_whistle", "1", "Are terrorists allowed to whistle?", FCVAR_PLUGIN);
 	g_hCVWhistleTimes = 	CreateConVar("sm_hns_whistle_times", "5", "How many times a hider is allowed to whistle per round?", FCVAR_PLUGIN);
-	g_hCVWhistleDelay =		CreateConVar("sm_hns_whistle_delay", "25.0", "How long after spawn should we delay the use of whistle? (Default: 25.0)", FCVAR_PLUGIN, true, 0.00, true, 120.00);
 	g_hCVAntiCheat = 		CreateConVar("sm_hns_anticheat", "0", "Check player cheat convars, 0 = off/1 = on.", FCVAR_PLUGIN, true, 0.0, true, 1.0);
 	g_hCVCheatPunishment = 	CreateConVar("sm_hns_cheat_punishment", "1", "How to punish players with wrong cvar values after 15 seconds? 0: Disabled. 1: Switch to Spectator. 2: Kick", FCVAR_PLUGIN, true, 0.00, true, 2.00);
 	g_hCVHiderWinFrags = 	CreateConVar("sm_hns_hider_win_frags", "5", "How many frags should surviving terrorists gain?", FCVAR_PLUGIN, true, 0.00, true, 10.00);
@@ -796,21 +793,6 @@ public Action:Event_OnPlayerSpawn(Handle:event, const String:name[], bool:dontBr
 		
 		if(g_iFirstTSpawn == 0)
 		{
-			if(g_hWhistleDelay != INVALID_HANDLE)
-			{
-				KillTimer(g_hWhistleDelay);
-				g_hWhistleDelay = INVALID_HANDLE;
-			}
-			
-			new Float:whistle_delay = GetConVarFloat(g_hCVWhistleDelay);
-			if(!g_bWhistlingAllowed && whistle_delay > 0.0)
-			{
-				g_hWhistleDelay = CreateTimer(whistle_delay, Timer_AllowWhistle, _, TIMER_FLAG_NO_MAPCHANGE);
-			}
-			else
-			{
-				g_bWhistlingAllowed = true;
-			}
 			g_iFirstTSpawn = GetTime();
 		}
 
@@ -925,7 +907,6 @@ public Action:Event_OnRoundStart(Handle:event, const String:name[], bool:dontBro
 		return Plugin_Continue;
 	
 	g_bRoundEnded = false;
-	g_bWhistlingAllowed = false;
 	
 	// When disabling +use or "e" button open all doors on the map and keep them opened.
 	new bool:bUse = GetConVarBool(g_hCVDisableUse);
@@ -1477,14 +1458,6 @@ public Action:ShowRoundTime(Handle:timer, any:roundTime)
 	else
 		g_hRoundTimeTimer = INVALID_HANDLE;
 	
-	return Plugin_Stop;
-}
-
-public Action:Timer_AllowWhistle(Handle:timer, any:data)
-{
-	g_bWhistlingAllowed = true;
-	
-	g_hWhistleDelay = INVALID_HANDLE;
 	return Plugin_Stop;
 }
 
@@ -3035,7 +3008,6 @@ stock Client_UpdateFakeProp(client)
 	}
 	
 	new bool:showprop = true;
-	new bool:showplayer = true;
 	
 	//Not alive, reset prop
 	if(!IsPlayerAlive(client))
