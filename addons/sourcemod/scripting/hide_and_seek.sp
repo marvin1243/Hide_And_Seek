@@ -22,6 +22,7 @@ new Handle:g_hCVChangeLimittime = INVALID_HANDLE;
 new Handle:g_hCVAutoChoose = INVALID_HANDLE;
 new Handle:g_hCVWhistle = INVALID_HANDLE;
 new Handle:g_hCVWhistleTimes = INVALID_HANDLE;
+new Handle:g_hCVWhistleSeeker = INVALID_HANDLE;
 new Handle:g_hCVAntiCheat = INVALID_HANDLE;
 new Handle:g_hCVCheatPunishment = INVALID_HANDLE;
 new Handle:g_hCVHiderWinFrags = INVALID_HANDLE;
@@ -172,6 +173,7 @@ public OnPluginStart()
 	g_hCVAutoChoose = 		CreateConVar("sm_hns_autochoose", "0", "Should the plugin choose models for the hiders automatically?", FCVAR_PLUGIN, true, 0.0, true, 1.0);
 	g_hCVWhistle = 			CreateConVar("sm_hns_whistle", "1", "Are terrorists allowed to whistle?", FCVAR_PLUGIN);
 	g_hCVWhistleTimes = 	CreateConVar("sm_hns_whistle_times", "5", "How many times a hider is allowed to whistle per round?", FCVAR_PLUGIN);
+	g_hCVWhistleSeeker = 	CreateConVar("sm_hns_whistle_seeker", "0", "Allow CTs to enforce T whistle?", FCVAR_PLUGIN);
 	g_hCVAntiCheat = 		CreateConVar("sm_hns_anticheat", "0", "Check player cheat convars, 0 = off/1 = on.", FCVAR_PLUGIN, true, 0.0, true, 1.0);
 	g_hCVCheatPunishment = 	CreateConVar("sm_hns_cheat_punishment", "1", "How to punish players with wrong cvar values after 15 seconds? 0: Disabled. 1: Switch to Spectator. 2: Kick", FCVAR_PLUGIN, true, 0.00, true, 2.00);
 	g_hCVHiderWinFrags = 	CreateConVar("sm_hns_hider_win_frags", "5", "How many frags should surviving terrorists gain?", FCVAR_PLUGIN, true, 0.00, true, 10.00);
@@ -1869,30 +1871,60 @@ public Action:Play_Whistle(client,args)
 	if(!g_bEnableHnS || !GetConVarBool(g_hCVWhistle) || !IsPlayerAlive(client))
 		return Plugin_Handled;
 	
+	new bool:cvarWhistleSeeker = bool:GetConVarInt(g_hCVWhistleSeeker);
+	
+	if(cvarWhistleSeeker && GetClientTeam(client) != CS_TEAM_CT)
+	{
+		PrintToChat(client, "%s%t", PREFIX, "Only counter-terrorists can use");
+		return Plugin_Handled;
+	}
 	// only Ts are allowed to whistle
-	if(GetClientTeam(client) != CS_TEAM_T)
+	else if(!cvarWhistleSeeker && GetClientTeam(client) != CS_TEAM_T)
 	{
 		PrintToChat(client, "%s%t", PREFIX, "Only terrorists can use");
 		return Plugin_Handled;
 	}
 	
-	//BUGGY
-	/* 
-	if(!g_bWhistlingAllowed)
-	{
-		PrintToChat(client, "%s%t", PREFIX, "Whistling not allowed yet");
-		return Plugin_Handled;
-	}
-	*/
-	
 	new cvarWhistleTimes = GetConVarInt(g_hCVWhistleTimes);
 	
 	if(g_iWhistleCount[client] < cvarWhistleTimes)
 	{
-		EmitSoundToAll(whistle_sounds[GetRandomInt(0, sizeof(whistle_sounds)-1)], client, SNDCHAN_AUTO, SNDLEVEL_GUNFIRE);
-		PrintToChatAll("%s%N %t", PREFIX, client, "whistled");
-		g_iWhistleCount[client]++;
-		PrintToChat(client, "%s%t", PREFIX, "whistles left", (cvarWhistleTimes-g_iWhistleCount[client]));
+		if(!cvarWhistleSeeker)
+		{
+			EmitSoundToAll(whistle_sounds[GetRandomInt(0, sizeof(whistle_sounds)-1)], client, SNDCHAN_AUTO, SNDLEVEL_GUNFIRE);
+			PrintToChatAll("%s%N %t", PREFIX, client, "whistled");
+			g_iWhistleCount[client]++;
+			PrintToChat(client, "%s%t", PREFIX, "whistles left", (cvarWhistleTimes-g_iWhistleCount[client]));
+		}
+		else
+		{
+			new target;
+			new iCount;
+			new Float:maxrange;
+			new Float:range;
+			
+			for(new i=1;i<=MaxClients;i++)
+			{
+				if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == CS_TEAM_T)
+				{
+					iCount++;
+					range = Entity_GetDistance(client, i);
+					if(range > maxrange)
+					{
+						maxrange = range;
+						target = i;
+					}
+				}
+			}
+			
+			if(iCount > 1)
+			{
+				EmitSoundToAll(whistle_sounds[GetRandomInt(0, sizeof(whistle_sounds)-1)], target, SNDCHAN_AUTO, SNDLEVEL_GUNFIRE);
+				PrintToChatAll("%s %N forced %N to whistle.", PREFIX, client, target);
+				g_iWhistleCount[client]++;
+				PrintToChat(client, "%s%t", PREFIX, "whistles left", (cvarWhistleTimes-g_iWhistleCount[client]));
+			}
+		}
 	}
 	else
 	{
