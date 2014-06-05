@@ -3037,6 +3037,7 @@ stock Client_UpdateFakeProp(client)
 	new bool:showprop = true;
 	new bool:showplayer = true;
 	
+	//Not alive, reset prop
 	if(!IsPlayerAlive(client))
 	{
 		if(g_bShowFakeProp[client]) 
@@ -3048,6 +3049,7 @@ stock Client_UpdateFakeProp(client)
 		return;
 	}
 	
+	//Wrong team, reset prop
 	if(GetClientTeam(client) != CS_TEAM_T)
 	{
 		if(g_bShowFakeProp[client]) 
@@ -3059,6 +3061,7 @@ stock Client_UpdateFakeProp(client)
 		return;
 	}
 	
+	//No fake prop exist? Create a one
 	if(g_iFreezeEntity[client] <= 0)
 	{
 		if(g_bShowFakeProp[client]) 
@@ -3070,6 +3073,7 @@ stock Client_UpdateFakeProp(client)
 		return;
 	}
 	
+	//Not a valid prop? Create a new one
 	if(!Entity_IsValid(g_iFreezeEntity[client]))
 	{
 		if(g_bShowFakeProp[client]) 
@@ -3081,7 +3085,8 @@ stock Client_UpdateFakeProp(client)
 		return;
 	}
 	
-	if(!(GetEntityFlags(client) & FL_ONGROUND) && !g_bIsFreezed[client])
+	//Don't use fake prop in air and if highfix is enabled while moving
+	if(!(GetEntityFlags(client) & FL_ONGROUND) && !g_bIsFreezed[client] && !g_bClientIsHigher[client])
 	{
 		showprop = false;
 	}
@@ -3090,7 +3095,8 @@ stock Client_UpdateFakeProp(client)
 	GetEntPropVector(client, Prop_Data, "m_vecVelocity", fVelocity); //velocity
 	new Float:currentspeed = SquareRoot(Pow(fVelocity[0],2.0)+Pow(fVelocity[1],2.0));
 	
-	if(currentspeed >= 235.0)
+	//Player is moving fast?
+	if(currentspeed >= 160.0)
 	{
 		showprop = false;
 	}
@@ -3102,28 +3108,29 @@ stock Client_UpdateFakeProp(client)
 	decl String:fullPath[100];
 	GetClientModel(client, fullPath, sizeof(fullPath));
 	
-	if(!g_bIsFreezed[client]) 
-	{
-		new Float:place[3], Float:place2[3], Float:secondpos[3];
-		
-		GetClientAbsOrigin(client, place);
+	new Float:place[3], Float:place2[3], Float:secondpos[3];
 	
-		ang_eye[0] = 0.0; //no x-axis rotation
-		ang_eye[2] = 0.0; //no z-axis rotation
-		place[0] -= 0.0;
-		place2[0] = 0.0;
-		
-		if(g_iFixedModelHeight[client] < 0.0)
-		{
-			place[2] += g_iFixedModelHeight[client];
-			place2[2] += g_iFixedModelHeight[client];
-		}
-		
-		GetEntPropVector(client, Prop_Data, "m_vecVelocity", secondpos);
-		AddVectors(place2, secondpos, place2);
-		TeleportEntity(g_iFreezeEntity[client], place, ang_eye, place2);
+	GetClientAbsOrigin(client, place);
+
+	ang_eye[0] = 0.0; //no x-axis rotation
+	ang_eye[2] = 0.0; //no z-axis rotation
+	place[0] -= 0.0;
+	place2[0] = 0.0;
+	
+	if(g_iFixedModelHeight[client] < 0.0)
+	{
+		place[2] += g_iFixedModelHeight[client];
+		place2[2] += g_iFixedModelHeight[client];
 	}
 	
+	GetEntPropVector(client, Prop_Data, "m_vecVelocity", secondpos);
+	AddVectors(place2, secondpos, place2);
+	
+	if(g_bIsFreezed[client]) 
+		TeleportEntity(g_iFreezeEntity[client], place, NULL_VECTOR, place2);
+	else TeleportEntity(g_iFreezeEntity[client], place, ang_eye, place2);
+	
+	//Toggle visibility
 	if(g_bShowFakeProp[client] != showprop)
 	{
 		g_bShowFakeProp[client] = showprop;
@@ -3131,19 +3138,12 @@ stock Client_UpdateFakeProp(client)
 		if(showprop)
 		{
 			SetEntityRenderMode(g_iFreezeEntity[client], RENDER_TRANSCOLOR);
+			SetEntityRenderMode(client, RENDER_NONE);
 		}
 		else
 		{
 			SetEntityRenderMode(g_iFreezeEntity[client], RENDER_NONE);
-		}
-		
-		if(showplayer && !showprop)
-		{
 			SetEntityRenderMode(client, RENDER_TRANSCOLOR);
-		}
-		else
-		{
-			SetEntityRenderMode(client, RENDER_NONE);
 		}
 	}
 }
